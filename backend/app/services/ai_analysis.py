@@ -7,7 +7,7 @@ from app.config import settings
 
 logger = logging.getLogger(__name__)
 
-MODEL = "claude-sonnet-4-5-20250929"
+MODEL = "claude-sonnet-4-20250514"
 
 
 def _get_client() -> Optional[anthropic.AsyncAnthropic]:
