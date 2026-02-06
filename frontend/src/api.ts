@@ -328,7 +328,10 @@ export async function getDigest(id: number): Promise<Digest> {
 }
 
 export async function previewDigest(): Promise<{ html: string }> {
-  return apiFetch<{ html: string }>("/digests/preview");
+  return apiFetch<{ html: string }>("/digests/preview", {
+    method: "POST",
+    body: JSON.stringify({ hours_back: 24 }),
+  });
 }
 
 // ── Scraping ───────────────────────────────────────────────────────────

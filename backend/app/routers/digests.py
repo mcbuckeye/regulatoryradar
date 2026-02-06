@@ -1,5 +1,5 @@
-from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy import select, desc, and_
+from fastapi import APIRouter, Depends, HTTPException, Query
+from sqlalchemy import select, desc, and_, func
 from sqlalchemy.orm import selectinload
 from sqlalchemy.ext.asyncio import AsyncSession
 from datetime import datetime, timedelta, timezone
@@ -13,21 +13,31 @@ from app.services.digest import generate_digest
 router = APIRouter(prefix="/api/digests", tags=["digests"])
 
 
-@router.get("", response_model=list[DigestResponse])
+@router.get("")
 async def list_digests(
-    skip: int = 0,
-    limit: int = 20,
+    page: int = Query(1, ge=1),
+    page_size: int = Query(20, ge=1, le=100),
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
+    # Get total count
+    count_result = await db.execute(
+        select(func.count()).select_from(DigestHistory).where(DigestHistory.user_id == current_user.id)
+    )
+    total = count_result.scalar() or 0
+    
+    # Get paginated items
+    skip = (page - 1) * page_size
     result = await db.execute(
         select(DigestHistory)
         .where(DigestHistory.user_id == current_user.id)
         .order_by(desc(DigestHistory.sent_at))
         .offset(skip)
-        .limit(limit)
+        .limit(page_size)
     )
-    return result.scalars().all()
+    items = result.scalars().all()
+    
+    return {"items": items, "total": total}
 
 
 @router.get("/{digest_id}", response_model=DigestResponse)
@@ -83,7 +93,7 @@ async def preview_digest(
     html_content = generate_digest(current_user, updates_with_analysis)
 
     return {
-        "html_content": html_content,
+        "html": html_content,
         "update_count": len(updates_with_analysis),
         "period_hours": data.hours_back,
     }
