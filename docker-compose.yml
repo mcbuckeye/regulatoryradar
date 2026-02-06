@@ -1,0 +1,64 @@
+version: '3.8'
+services:
+  regulatoryradar-postgres:
+    image: postgres:15
+    container_name: regulatoryradar-postgres
+    environment:
+      POSTGRES_USER: regulatoryradar
+      POSTGRES_PASSWORD: regulatoryradar_secret
+      POSTGRES_DB: regulatoryradar
+    volumes:
+      - regulatoryradar-pgdata:/var/lib/postgresql/data
+    networks:
+      - regulatoryradar-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U regulatoryradar"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  regulatoryradar-backend:
+    build: ./backend
+    container_name: regulatoryradar-backend
+    environment:
+      DATABASE_URL: postgresql+asyncpg://regulatoryradar:regulatoryradar_secret@regulatoryradar-postgres:5432/regulatoryradar
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY}
+      SMTP_HOST: ${SMTP_HOST:-mail.smtp2go.com}
+      SMTP_PORT: ${SMTP_PORT:-2525}
+      SMTP_USER: ${SMTP_USER:-steveipwatcher}
+      SMTP_PASS: ${SMTP_PASS}
+      SMTP_FROM: ${SMTP_FROM:-steve@ipwatcher.com}
+      SECRET_KEY: ${SECRET_KEY:-regulatoryradar-secret-key-change-in-prod}
+    depends_on:
+      regulatoryradar-postgres:
+        condition: service_healthy
+    networks:
+      - regulatoryradar-network
+      - dokploy-network
+    restart: unless-stopped
+
+  regulatoryradar-frontend:
+    build: ./frontend
+    container_name: regulatoryradar-frontend
+    depends_on:
+      - regulatoryradar-backend
+    networks:
+      - regulatoryradar-network
+      - dokploy-network
+    restart: unless-stopped
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.regulatoryradar.rule=Host(`regulatoryradar.machomelab.com`)"
+      - "traefik.http.routers.regulatoryradar.entrypoints=web,websecure"
+      - "traefik.http.services.regulatoryradar.loadbalancer.server.port=80"
+      - "traefik.docker.network=dokploy-network"
+
+volumes:
+  regulatoryradar-pgdata:
+
+networks:
+  regulatoryradar-network:
+    driver: bridge
+  dokploy-network:
+    external: true
