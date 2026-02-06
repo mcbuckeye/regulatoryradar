@@ -159,7 +159,14 @@ export async function login(
 
   if (!response.ok) {
     const body = await response.json().catch(() => ({}));
-    throw new Error(body.detail || "Invalid credentials");
+    // Handle FastAPI validation errors (detail is array) vs simple errors (detail is string)
+    let message = "Invalid credentials";
+    if (typeof body.detail === "string") {
+      message = body.detail;
+    } else if (Array.isArray(body.detail) && body.detail.length > 0) {
+      message = body.detail.map((e: { msg?: string }) => e.msg || "Validation error").join(", ");
+    }
+    throw new Error(message);
   }
 
   return response.json();
