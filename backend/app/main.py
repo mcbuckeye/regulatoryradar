@@ -125,8 +125,9 @@ async def lifespan(app: FastAPI):
     async with async_session_factory() as db:
         try:
             await run_all_seeds(db)
+            logger.info("Seed data applied successfully")
         except Exception as e:
-            logger.error(f"Seed data error: {e}")
+            logger.error(f"Seed data error: {e}", exc_info=True)
 
     scheduler.add_job(
         scheduled_scrape,
