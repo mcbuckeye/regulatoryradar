@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy import select, func, or_, and_, desc, asc
+from sqlalchemy import select, func, or_, and_, desc, asc, coalesce
 from sqlalchemy.orm import selectinload
 from sqlalchemy.ext.asyncio import AsyncSession
 from typing import Optional
@@ -68,9 +68,10 @@ async def list_updates(
     if update_type:
         filters.append(RegulatoryUpdate.update_type == update_type)
     if date_from:
-        filters.append(RegulatoryUpdate.published_date >= date_from)
+        # Use scraped_at as fallback when published_date is NULL
+        filters.append(coalesce(RegulatoryUpdate.published_date, RegulatoryUpdate.scraped_at) >= date_from)
     if date_to:
-        filters.append(RegulatoryUpdate.published_date <= date_to)
+        filters.append(coalesce(RegulatoryUpdate.published_date, RegulatoryUpdate.scraped_at) <= date_to)
     if therapeutic_area:
         filters.append(RegulatoryUpdate.therapeutic_areas.any(therapeutic_area))
     if search:
@@ -99,7 +100,8 @@ async def list_updates(
             query = query.join(UpdateAnalysis, RegulatoryUpdate.id == UpdateAnalysis.update_id, isouter=True)
         query = query.order_by(desc(UpdateAnalysis.relevance_score).nulls_last())
     else:
-        query = query.order_by(desc(RegulatoryUpdate.published_date).nulls_last())
+        # Use scraped_at as fallback when published_date is NULL for sorting
+        query = query.order_by(desc(coalesce(RegulatoryUpdate.published_date, RegulatoryUpdate.scraped_at)))
 
     query = query.offset(skip).limit(limit)
     result = await db.execute(query)
