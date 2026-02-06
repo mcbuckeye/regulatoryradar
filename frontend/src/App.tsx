@@ -9,6 +9,7 @@ import UpdateDetail from "./pages/UpdateDetail";
 import Search from "./pages/Search";
 import Digests from "./pages/Digests";
 import Settings from "./pages/Settings";
+import Guide from "./pages/Guide";
 
 function AppRoutes() {
   const { isLoading } = useAuth();
@@ -41,6 +42,7 @@ function AppRoutes() {
         <Route path="search" element={<Search />} />
         <Route path="digests" element={<Digests />} />
         <Route path="settings" element={<Settings />} />
+        <Route path="guide" element={<Guide />} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>

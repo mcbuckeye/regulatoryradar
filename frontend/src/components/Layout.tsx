@@ -12,6 +12,7 @@ import {
   X,
   User,
   ChevronDown,
+  BookOpen,
 } from "lucide-react";
 import { useAuth } from "../auth";
 
@@ -21,6 +22,7 @@ const navItems = [
   { to: "/search", label: "Search", icon: Search, end: false },
   { to: "/digests", label: "Digests", icon: Mail, end: false },
   { to: "/settings", label: "Settings", icon: Settings, end: false },
+  { to: "/guide", label: "Guide", icon: BookOpen, end: false },
 ];
 
 export default function Layout() {
