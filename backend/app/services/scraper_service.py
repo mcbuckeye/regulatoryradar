@@ -162,9 +162,9 @@ async def run_scrape(
             total_new += new
             logger.info(f"Clinical trials: {found} found, {new} new")
 
-        if total_new > 0:
-            logger.info(f"Analyzing {total_new} new updates...")
-            await _analyze_new_updates(db, therapeutic_keywords)
+        # Always analyze any un-analyzed updates (not just new ones)
+        logger.info("Analyzing any un-analyzed updates...")
+        await _analyze_new_updates(db, therapeutic_keywords)
 
         scrape_log.updates_found = total_found
         scrape_log.new_updates = total_new
