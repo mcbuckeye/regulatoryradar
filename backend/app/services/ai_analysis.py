@@ -1,20 +1,20 @@
 import logging
 from typing import Optional
 
-import anthropic
+from openai import AsyncOpenAI
 
 from app.config import settings
 
 logger = logging.getLogger(__name__)
 
-MODEL = "claude-sonnet-4-20250514"
+MODEL = "gpt-4o"
 
 
-def _get_client() -> Optional[anthropic.AsyncAnthropic]:
-    if not settings.ANTHROPIC_API_KEY:
-        logger.warning("ANTHROPIC_API_KEY not set, AI analysis will be skipped")
+def _get_client() -> Optional[AsyncOpenAI]:
+    if not settings.OPENAI_API_KEY:
+        logger.warning("OPENAI_API_KEY not set, AI analysis will be skipped")
         return None
-    return anthropic.AsyncAnthropic(api_key=settings.ANTHROPIC_API_KEY)
+    return AsyncOpenAI(api_key=settings.OPENAI_API_KEY)
 
 
 async def summarize_update(title: str, content: str) -> str:
@@ -23,29 +23,28 @@ async def summarize_update(title: str, content: str) -> str:
         return f"Summary not available (API key not configured). Title: {title}"
 
     try:
-        message = await client.messages.create(
+        response = await client.chat.completions.create(
             model=MODEL,
             max_tokens=300,
             messages=[
                 {
+                    "role": "system",
+                    "content": "You are a regulatory affairs analyst. Provide concise, professional summaries."
+                },
+                {
                     "role": "user",
                     "content": (
-                        "You are a regulatory affairs analyst. Summarize the following FDA/regulatory "
-                        "update in 2-3 concise sentences. Focus on what changed, who it affects, and "
-                        "the potential impact on the pharmaceutical industry.\n\n"
+                        "Summarize the following FDA/regulatory update in 2-3 concise sentences. "
+                        "Focus on what changed, who it affects, and the potential impact on the pharmaceutical industry.\n\n"
                         f"Title: {title}\n\n"
-                        f"Content: {content[:3000]}\n\n"
-                        "Summary:"
+                        f"Content: {content[:3000]}"
                     ),
                 }
             ],
         )
-        return message.content[0].text.strip()
-    except anthropic.APIError as e:
-        logger.error(f"Anthropic API error during summarization: {e}")
-        return f"Summary generation failed. Title: {title}"
+        return response.choices[0].message.content.strip()
     except Exception as e:
-        logger.error(f"Unexpected error during summarization: {e}")
+        logger.error(f"OpenAI API error during summarization: {e}")
         return f"Summary generation failed. Title: {title}"
 
 
@@ -64,15 +63,18 @@ async def score_relevance(
     areas_str = ", ".join(therapeutic_areas) if therapeutic_areas else "general pharmaceutical"
 
     try:
-        message = await client.messages.create(
+        response = await client.chat.completions.create(
             model=MODEL,
             max_tokens=300,
             messages=[
                 {
+                    "role": "system",
+                    "content": "You are a regulatory affairs analyst scoring update relevance."
+                },
+                {
                     "role": "user",
                     "content": (
-                        "You are a regulatory affairs analyst scoring the relevance of an update "
-                        f"for someone interested in these therapeutic areas: {areas_str}.\n\n"
+                        f"Score the relevance of this update for someone interested in: {areas_str}.\n\n"
                         f"Title: {title}\n"
                         f"Summary: {summary}\n\n"
                         "Rate the relevance from 1-100 where:\n"
@@ -89,7 +91,7 @@ async def score_relevance(
             ],
         )
 
-        response_text = message.content[0].text.strip()
+        response_text = response.choices[0].message.content.strip()
         lines = response_text.split("\n")
 
         score = 50
@@ -109,12 +111,9 @@ async def score_relevance(
 
         return {"score": score, "reasoning": reasoning}
 
-    except anthropic.APIError as e:
-        logger.error(f"Anthropic API error during relevance scoring: {e}")
-        return {"score": 50, "reasoning": "Scoring failed due to API error."}
     except Exception as e:
-        logger.error(f"Unexpected error during relevance scoring: {e}")
-        return {"score": 50, "reasoning": "Scoring failed due to unexpected error."}
+        logger.error(f"OpenAI API error during relevance scoring: {e}")
+        return {"score": 50, "reasoning": "Scoring failed due to API error."}
 
 
 async def analyze_update(
@@ -156,10 +155,14 @@ async def _extract_key_points(title: str, content: str) -> list[str]:
         return [f"Key update: {title}"]
 
     try:
-        message = await client.messages.create(
+        response = await client.chat.completions.create(
             model=MODEL,
             max_tokens=300,
             messages=[
+                {
+                    "role": "system",
+                    "content": "Extract key points from regulatory updates as concise bullet points."
+                },
                 {
                     "role": "user",
                     "content": (
@@ -173,7 +176,7 @@ async def _extract_key_points(title: str, content: str) -> list[str]:
             ],
         )
 
-        response_text = message.content[0].text.strip()
+        response_text = response.choices[0].message.content.strip()
         points = []
         for line in response_text.split("\n"):
             line = line.strip()

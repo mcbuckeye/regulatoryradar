@@ -4,7 +4,7 @@ from typing import Optional
 
 class Settings(BaseSettings):
     DATABASE_URL: str = "postgresql+asyncpg://postgres:postgres@localhost:5432/regulatoryradar"
-    ANTHROPIC_API_KEY: str = ""
+    OPENAI_API_KEY: str = ""
     SECRET_KEY: str = "regulatoryradar-secret-key-change-in-prod"
     SMTP_HOST: str = "mail.smtp2go.com"
     SMTP_PORT: int = 2525
